@@ -41,7 +41,7 @@ def train(args, model, device, train_loader, optimizer, epoch,plist):
             c1+=sum(sum(torch.abs(p.data)<threshold)).item()   
 
     print('Model parameters below threshold: ' + str(c1))         
-    list.append(c1) 
+    plist.append(c1) 
     model.train()
 
     for batch_idx, (data, target) in enumerate(train_loader):
