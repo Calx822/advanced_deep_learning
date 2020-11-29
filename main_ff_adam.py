@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
+import pandas as pd
 
 
 input_dim=784 #Mnist: 28x28 images -> input dimension = 784
@@ -16,7 +17,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, output_dim)
-                
+
     def forward(self, x):
         x = torch.flatten(x, 1)
         x = self.fc1(x)
@@ -36,7 +37,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
-        
+
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -45,7 +46,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 break
 
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, losslist):
     model.eval()
     test_loss = 0
     correct = 0
@@ -58,7 +59,7 @@ def test(model, device, test_loader):
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
-
+    losslist.append(test_loss)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
@@ -115,18 +116,19 @@ def main():
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     model = Net().to(device)
-    
+
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-  
+    test_loss = []
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+        test(model, device, test_loader, losslist = test_loss)
         scheduler.step()
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
-
+    df = pd.DataFrame(test_loss)
+    df.to_csv('loss.csv_{}'.format(args.lr), index = False)
 
 if __name__ == '__main__':
     main()
